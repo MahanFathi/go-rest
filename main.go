@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -108,6 +109,12 @@ func (h *CoasterHandlers) getCoaster(w http.ResponseWriter, r *http.Request) {
 	if len(parts) != 3 {
 		w.WriteHeader(http.StatusNotFound)
 	}
+
+	if parts[2] == "random" {
+		h.getRandomCoaster(w, r)
+		return
+	}
+
 	h.Lock()
 	coaster, ok := h.store[parts[2]]
 	h.Unlock()
@@ -124,6 +131,28 @@ func (h *CoasterHandlers) getCoaster(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "application/json")
 	w.Write(jsonBytes)
 	w.WriteHeader(http.StatusOK)
+}
+
+
+func (h *CoasterHandlers) getRandomCoaster(w http.ResponseWriter, r *http.Request) {
+	ids := make([]string, len(h.store))
+	h.Lock()
+	i := 0
+	for id := range h.store {
+		ids[i] = id
+		i++
+	}
+	defer h.Unlock()
+	if len(ids) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	rand.Seed(time.Now().UnixNano())
+	target := ids[rand.Intn(len(ids))]
+
+	// redirect
+	w.Header().Add("location", fmt.Sprintf("/coasters/%s", target))
+	w.WriteHeader(http.StatusFound)
 }
 
 
